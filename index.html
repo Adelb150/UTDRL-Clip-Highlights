@@ -585,6 +585,30 @@ function renderClipCard(clip, voteCount, isVoted) {
   return card;
 }
 
+function hallOfFameRenderClipCard(clip) {
+  const embedUrl = getEmbedUrl(clip.clip_url);
+
+  const media = embedUrl
+    ? `<video
+        controls
+        playsinline
+        preload="metadata"
+        style="width:100%;height:100%;object-fit:contain;background:#000;"
+      >
+        <source src="${embedUrl}" type="video/mp4">
+      </video>`
+    : `<a class="card-media-fallback" href="${clip.clip_url}" target="_blank" rel="noopener">
+        <span class="play">▶</span>
+        <span>Watch on ${getHostBadge(clip.clip_url)} ↗</span>
+      </a>`;
+
+  const card = document.createElement('div');
+  card.className = 'card-media';
+  card.innerHTML = media;
+
+  return card;
+}
+
 async function handleVote(clipId, btnEl) {
   if (!currentUser) {
     login();
@@ -774,9 +798,9 @@ async function loadHallOfFame() {
       <div class="hof-winner-votes">🔥 ${winnerVotes} vote${winnerVotes === 1 ? '' : 's'}</div>
       <a class="hof-link" href="${winner.clip_url}" target="_blank" rel="noopener">Watch clip ↗</a>
     `;
+    card.appendChild(hallOfFameRenderClipCard(winner, winnerVotes, false));
     strip.appendChild(card);
   }
-
   if (strip.children.length === 0) {
     strip.innerHTML = `<div class="empty-state" style="min-width:100%">
       <strong>No votes cast yet in past weeks</strong>
