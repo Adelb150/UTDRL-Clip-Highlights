@@ -458,6 +458,9 @@ function getEmbedUrl(url) {
       const id = u.pathname.split('/').filter(Boolean)[0];
       if (id) return `https://clips.twitch.tv/embed?clip=${id}&parent=${location.hostname}`;
     }
+    if (url.includes('medal.tv')) {
+      return 'https://medal.tv/api/content/nk8WceOD4q_GiBXFV/socialVideoUrl';
+    }
   } catch { /* fall through to null */ }
   // medal.tv and anything unrecognized: no reliable public iframe embed,
   // fall back to a "watch on [host]" card instead.
@@ -524,11 +527,20 @@ async function loadWeekVotes(clipIds) {
 
 function renderClipCard(clip, voteCount, isVoted) {
   const embedUrl = getEmbedUrl(clip.clip_url);
+
   const media = embedUrl
-    ? `<iframe src="${embedUrl}" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>`
+    ? `<video
+        controls
+        playsinline
+        preload="metadata"
+        style="width:100%;height:100%;object-fit:contain;background:#000;"
+      >
+        <source src="${embedUrl}" type="video/mp4">
+      </video>`
     : `<a class="card-media-fallback" href="${clip.clip_url}" target="_blank" rel="noopener">
-         <span class="play">▶</span><span>Watch on ${getHostBadge(clip.clip_url)} ↗</span>
-       </a>`;
+        <span class="play">▶</span>
+        <span>Watch on ${getHostBadge(clip.clip_url)} ↗</span>
+      </a>`;
 
   const postedDate = new Date(clip.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
