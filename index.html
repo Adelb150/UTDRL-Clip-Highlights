@@ -235,11 +235,8 @@
   .gauge-btn svg { width: 52px; height: 52px; transform: rotate(-90deg); display: block; }
   .gauge-track { fill: none; stroke: var(--line); stroke-width: 5; }
   .gauge-fill {
-    fill: none; 
-    stroke: var(--blue); 
-    stroke-width: 5; 
-    stroke-linecap: round;
-    transition: stroke-dashoffset 0.4s ease; /* Removed 'stroke 0.2s' */
+    fill: none; stroke: var(--blue); stroke-width: 5; stroke-linecap: round;
+    transition: stroke-dashoffset 0.4s ease, stroke 0.2s;
   }
   .gauge-btn.voted .gauge-fill { stroke: var(--orange); }
   .gauge-count {
@@ -357,7 +354,6 @@
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// ── Config — fill these in with your Supabase project's values ──
 // SUPABASE_URL: Project Settings → API → "Project URL"
 // SUPABASE_ANON_KEY: Project Settings → API → "anon public" key
 // (the anon key is DESIGNED to be public — safe to commit, unlike service_role)
@@ -485,7 +481,6 @@ function getEmbedUrl(url) {
       }
     }
   } catch { /* fall through to null */ }
-  // medal.tv and anything unrecognized: no reliable public iframe embed,
   // fall back to a "watch on [host]" card instead.
   return null;
 }
