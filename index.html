@@ -458,9 +458,6 @@ function getEmbedUrl(url) {
       const id = u.pathname.split('/').filter(Boolean)[0];
       if (id) return `https://clips.twitch.tv/embed?clip=${id}&parent=${location.hostname}`;
     }
-    if (u.hostname.includes('medal.tv')) {
-      return `https://medal.tv/games/rocket-league/clips/${u.pathname.split('/').filter(Boolean).pop()}`;
-    }
   } catch { /* fall through to null */ }
   // medal.tv and anything unrecognized: no reliable public iframe embed,
   // fall back to a "watch on [host]" card instead.
