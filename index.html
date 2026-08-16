@@ -608,9 +608,7 @@ async function renderWeek() {
     .eq('week_id', week.id)
     .order('posted_at', { ascending: false });
 
-  console.log('WEEK ID:', week.id);
-  console.log('CLIPS:', clips);
-  console.log('ERROR:', error);
+    
 
   if (!clips || clips.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
