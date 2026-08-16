@@ -458,6 +458,16 @@ function getEmbedUrl(url) {
       const id = u.pathname.split('/').filter(Boolean)[0];
       if (id) return `https://clips.twitch.tv/embed?clip=${id}&parent=${location.hostname}`;
     }
+    if (u.hostname.includes('medal.tv')) {
+      const parts = u.pathname.split('/').filter(Boolean);
+      const clipIndex = parts.indexOf('clips');
+
+      if (clipIndex !== -1 && parts[clipIndex + 1]) {
+        const clipId = parts[clipIndex + 1];
+
+        return `https://medal.tv/games/rocket-league/clips/${clipId}`;
+      }
+    }
   } catch { /* fall through to null */ }
   // medal.tv and anything unrecognized: no reliable public iframe embed,
   // fall back to a "watch on [host]" card instead.
