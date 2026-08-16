@@ -369,9 +369,21 @@ async function initAuth() {
   const { data: { session } } = await supabase.auth.getSession();
   applySession(session);
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
     applySession(session);
-    renderWeek(); // re-render so vote states/login-gating update
+
+    // Supabase silently fires this listener on background token refreshes
+    // too (e.g. whenever the tab regains focus/visibility), not just on
+    // actual login/logout. Only re-render the grid for events that can
+    // change vote-gating/state — otherwise every tab-back re-mounts all
+    // <video> elements and re-hits the medal.tv API for every clip,
+    // which is what was causing the rate limiting.
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+      renderWeek();
+    } else {
+      // e.g. TOKEN_REFRESHED — cheap update, no video re-mount.
+      refreshVoteStates();
+    }
   });
 }
 
@@ -543,23 +555,46 @@ async function loadWeekVotes(clipIds) {
   return { counts, myVoteClipId };
 }
 
+// Video is never auto-loaded. Every card starts as a "Watch on HOST ↗"
+// thumbnail; only clicking it creates a <video> and points it at Medal
+// (or wherever). This is deliberate — an eagerly-loaded <video> keeps a
+// live connection to the clip host open, and browsers will suspend/
+// resume-fetch that connection whenever the tab is backgrounded and
+// re-focused. With nothing to suspend, there's nothing to re-fetch.
+function playButtonMarkup(clipUrl) {
+  return `<a class="card-media-fallback" href="${clipUrl}" target="_blank" rel="noopener">
+      <span class="play">▶</span>
+      <span>Watch on ${getHostBadge(clipUrl)} ↗</span>
+    </a>`;
+}
+
+function videoMarkup(embedUrl) {
+  return `<video
+      controls
+      autoplay
+      playsinline
+      preload="metadata"
+      style="width:100%;height:100%;object-fit:contain;background:#000;"
+    >
+      <source src="${embedUrl}" type="video/mp4">
+    </video>`;
+}
+
+// Wires the "Watch on HOST" link inside mediaEl so a click swaps it for a
+// real <video> and starts playback, instead of navigating away — unless
+// we don't know how to embed the host, in which case the link just opens
+// normally (untouched default behavior).
+function wireClickToPlay(mediaEl, clipUrl) {
+  const link = mediaEl.querySelector('.card-media-fallback');
+  link.addEventListener('click', (e) => {
+    const embedUrl = getEmbedUrl(clipUrl);
+    if (!embedUrl) return; // no known embed — let the link open externally
+    e.preventDefault();
+    link.outerHTML = videoMarkup(embedUrl);
+  });
+}
+
 function renderClipCard(clip, voteCount, isVoted) {
-  const embedUrl = getEmbedUrl(clip.clip_url);
-
-  const media = embedUrl
-    ? `<video
-        controls
-        playsinline
-        preload="metadata"
-        style="width:100%;height:100%;object-fit:contain;background:#000;"
-      >
-        <source src="${embedUrl}" type="video/mp4">
-      </video>`
-    : `<a class="card-media-fallback" href="${clip.clip_url}" target="_blank" rel="noopener">
-        <span class="play">▶</span>
-        <span>Watch on ${getHostBadge(clip.clip_url)} ↗</span>
-      </a>`;
-
   const postedDate = new Date(clip.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const card = document.createElement('div');
@@ -567,7 +602,7 @@ function renderClipCard(clip, voteCount, isVoted) {
   card.innerHTML = `
     <div class="card-media">
       <span class="host-badge">${getHostBadge(clip.clip_url)}</span>
-      ${media}
+      ${playButtonMarkup(clip.clip_url)}
     </div>
     <div class="card-body">
       <div>
@@ -581,31 +616,17 @@ function renderClipCard(clip, voteCount, isVoted) {
     </div>
   `;
 
+  wireClickToPlay(card.querySelector('.card-media'), clip.clip_url);
   card.querySelector('.gauge-btn').addEventListener('click', (e) => handleVote(clip.id, e.currentTarget));
   return card;
 }
 
 function hallOfFameRenderClipCard(clip) {
-  const embedUrl = getEmbedUrl(clip.clip_url);
-
-  const media = embedUrl
-    ? `<video
-        controls
-        playsinline
-        preload="metadata"
-        style="width:100%;height:100%;object-fit:contain;background:#000;"
-      >
-        <source src="${embedUrl}" type="video/mp4">
-      </video>`
-    : `<a class="card-media-fallback" href="${clip.clip_url}" target="_blank" rel="noopener">
-        <span class="play">▶</span>
-        <span>Watch on ${getHostBadge(clip.clip_url)} ↗</span>
-      </a>`;
-
   const card = document.createElement('div');
   card.className = 'card-media';
-  card.innerHTML = media;
+  card.innerHTML = playButtonMarkup(clip.clip_url);
 
+  wireClickToPlay(card, clip.clip_url);
   return card;
 }
 
@@ -719,7 +740,36 @@ async function handleVote(clipId, btnEl) {
     btnEl.classList.remove('pip');
   }, 350);
 
-  await renderWeek();
+  await refreshVoteStates();
+}
+
+// Clips currently rendered in #weekGrid, kept around so refreshVoteStates()
+// can update gauges without re-fetching clips or touching the <video> nodes.
+let currentWeekClips = [];
+
+// Updates vote counts/gauge state on the already-rendered cards in place —
+// no grid.innerHTML rebuild, so existing <video> elements are left alone
+// and don't re-hit the medal.tv API. Safe to call often (tab focus, auth
+// token refresh, after casting a vote).
+async function refreshVoteStates() {
+  if (currentWeekClips.length === 0) return;
+
+  const { counts, myVoteClipId } = await loadWeekVotes(currentWeekClips.map(c => c.id));
+
+  for (const clip of currentWeekClips) {
+    const btn = document.querySelector(`.gauge-btn[data-clip-id="${clip.id}"]`);
+    if (!btn) continue;
+
+    const voteCount = counts[clip.id] || 0;
+    const isVoted = clip.id === myVoteClipId;
+
+    btn.classList.toggle('voted', isVoted);
+    btn.title = isVoted ? 'Remove vote' : 'Vote for this clip';
+    btn.innerHTML = `
+      ${gaugeSvg(voteCount, isVoted)}
+      <span class="gauge-label">${isVoted ? 'Voted' : 'Boost'}</span>
+    `;
+  }
 }
 
 async function renderWeek() {
@@ -727,6 +777,7 @@ async function renderWeek() {
   const week = await loadWeekMeta();
 
   if (!week) {
+    currentWeekClips = [];
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
       <strong>No clips logged yet this week</strong>
       Post a highlight in #game-highlights — it'll show up here within the hour.
@@ -743,12 +794,15 @@ async function renderWeek() {
     
 
   if (!clips || clips.length === 0) {
+    currentWeekClips = [];
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
       <strong>No clips logged yet this week</strong>
       Post a highlight in #game-highlights — it'll show up here within the hour.
     </div>`;
     return;
   }
+
+  currentWeekClips = clips;
 
   const { counts, myVoteClipId } = await loadWeekVotes(clips.map(c => c.id));
 
@@ -812,6 +866,15 @@ async function loadHallOfFame() {
 initAuth();
 renderWeek();
 setInterval(() => { loadWeekMeta(); }, 60000); // keep countdown fresh
+
+// Refresh vote counts when the tab regains focus, without relying on
+// Supabase's auth-refresh timing. Deliberately does NOT call renderWeek(),
+// so existing <video> elements are never re-mounted / re-fetched.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    refreshVoteStates();
+  }
+});
 </script>
 
 </body>
