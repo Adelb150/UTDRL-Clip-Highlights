@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Pulls Rocket League clip links from a Discord channel into Supabase for a weekly voting site.",
   "scripts": {
-    "pull-clips": "node scripts/pull-clips.mjs"
+    "pull-clips": "node pull-clips.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
