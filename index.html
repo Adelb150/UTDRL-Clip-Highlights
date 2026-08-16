@@ -363,25 +363,29 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null; // { discordId, username, avatarUrl }
+let lastAuthUserId = null; // tracks identity, not event name — see initAuth()
 
 // ── Auth ──────────────────────────────────────────────────────────
 async function initAuth() {
   const { data: { session } } = await supabase.auth.getSession();
+  lastAuthUserId = session?.user?.id ?? null;
   applySession(session);
 
   supabase.auth.onAuthStateChange((event, session) => {
     applySession(session);
 
-    // Supabase silently fires this listener on background token refreshes
-    // too (e.g. whenever the tab regains focus/visibility), not just on
-    // actual login/logout. Only re-render the grid for events that can
-    // change vote-gating/state — otherwise every tab-back re-mounts all
-    // <video> elements and re-hits the medal.tv API for every clip,
-    // which is what was causing the rate limiting.
-    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+    // Supabase's focus-triggered session check can re-fire a SIGNED_IN-type
+    // event even when it's the same user and nothing actually changed (a
+    // known quirk, not something we can turn off) — so don't trust the
+    // event name. Only do a full re-render when the signed-in user's
+    // identity actually changes; otherwise just refresh vote counts.
+    // A full renderWeek() re-mounts every <video>/thumbnail, which is what
+    // was causing repeat hits to the medal.tv API on every tab-back.
+    const newUserId = session?.user?.id ?? null;
+    if (newUserId !== lastAuthUserId) {
+      lastAuthUserId = newUserId;
       renderWeek();
     } else {
-      // e.g. TOKEN_REFRESHED — cheap update, no video re-mount.
       refreshVoteStates();
     }
   });
@@ -464,23 +468,28 @@ function getHostBadge(url) {
   return 'CLIP';
 }
 
+// Returns { kind: 'video' | 'iframe', url } or null if the host isn't
+// recognized. kind matters: medal.tv's socialVideoUrl redirects straight to
+// an mp4 (playable in a <video> tag), but YouTube/Streamable/Twitch return
+// HTML embed *pages* that only work inside an <iframe> — feeding those into
+// a <video><source> silently fails to play.
 function getEmbedUrl(url) {
   try {
     const u = new URL(url);
     if (u.hostname.includes('youtu.be')) {
-      return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+      return { kind: 'iframe', url: `https://www.youtube.com/embed/${u.pathname.slice(1)}` };
     }
     if (u.hostname.includes('youtube.com')) {
       const id = u.searchParams.get('v');
-      if (id) return `https://www.youtube.com/embed/${id}`;
+      if (id) return { kind: 'iframe', url: `https://www.youtube.com/embed/${id}` };
     }
     if (u.hostname.includes('streamable.com')) {
       const id = u.pathname.split('/').filter(Boolean)[0];
-      if (id) return `https://streamable.com/e/${id}`;
+      if (id) return { kind: 'iframe', url: `https://streamable.com/e/${id}` };
     }
     if (u.hostname.includes('clips.twitch.tv')) {
       const id = u.pathname.split('/').filter(Boolean)[0];
-      if (id) return `https://clips.twitch.tv/embed?clip=${id}&parent=${location.hostname}`;
+      if (id) return { kind: 'iframe', url: `https://clips.twitch.tv/embed?clip=${id}&parent=${location.hostname}` };
     }
     if (u.hostname.includes('medal.tv')) {
       const parts = u.pathname.split('/').filter(Boolean);
@@ -489,7 +498,7 @@ function getEmbedUrl(url) {
       if (clipIndex !== -1 && parts[clipIndex + 1]) {
         const clipId = parts[clipIndex + 1];
 
-        return `https://medal.tv/api/content/${clipId}/socialVideoUrl`;
+        return { kind: 'video', url: `https://medal.tv/api/content/${clipId}/socialVideoUrl` };
       }
     }
   } catch { /* fall through to null */ }
@@ -568,7 +577,15 @@ function playButtonMarkup(clipUrl) {
     </a>`;
 }
 
-function videoMarkup(embedUrl) {
+function videoMarkup(embed) {
+  if (embed.kind === 'iframe') {
+    return `<iframe
+        src="${embed.url}"
+        style="width:100%;height:100%;border:0;display:block;"
+        allow="autoplay; fullscreen"
+        allowfullscreen
+      ></iframe>`;
+  }
   return `<video
       controls
       autoplay
@@ -576,21 +593,21 @@ function videoMarkup(embedUrl) {
       preload="metadata"
       style="width:100%;height:100%;object-fit:contain;background:#000;"
     >
-      <source src="${embedUrl}" type="video/mp4">
+      <source src="${embed.url}" type="video/mp4">
     </video>`;
 }
 
 // Wires the "Watch on HOST" link inside mediaEl so a click swaps it for a
-// real <video> and starts playback, instead of navigating away — unless
-// we don't know how to embed the host, in which case the link just opens
+// real player and starts playback, instead of navigating away — unless we
+// don't know how to embed the host, in which case the link just opens
 // normally (untouched default behavior).
 function wireClickToPlay(mediaEl, clipUrl) {
   const link = mediaEl.querySelector('.card-media-fallback');
   link.addEventListener('click', (e) => {
-    const embedUrl = getEmbedUrl(clipUrl);
-    if (!embedUrl) return; // no known embed — let the link open externally
+    const embed = getEmbedUrl(clipUrl);
+    if (!embed) return; // no known embed — let the link open externally
     e.preventDefault();
-    link.outerHTML = videoMarkup(embedUrl);
+    link.outerHTML = videoMarkup(embed);
   });
 }
 
@@ -636,43 +653,29 @@ async function handleVote(clipId, btnEl) {
     return;
   }
 
-  console.log('--- VOTE DEBUG ---');
-  console.log('clipId:', clipId);
-  console.log('currentUser:', currentUser);
-  console.log('discordId:', currentUser.discordId);
-
   const alreadyVotedThis = btnEl.classList.contains('voted');
 
   if (alreadyVotedThis) {
 
-    console.log('Removing vote...');
-
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('votes')
       .delete()
       .eq('clip_id', clipId)
       .eq('voter_discord_id', currentUser.discordId);
 
-    console.log('DELETE data:', data);
-    console.log('DELETE error:', error);
-
     if (error) {
-      console.error('❌ DELETE VOTE FAILED:', error);
+      console.error('Could not remove vote:', error);
       alert(`Could not remove vote:\n${error.message}`);
       return;
     }
 
   } else {
 
-    console.log('Adding vote...');
-
     // Get current week
     const week = await loadWeekMeta();
 
-    console.log('week:', week);
-
     if (!week) {
-      console.error('❌ No current week found');
+      console.error('No current week found');
       return;
     }
 
@@ -686,49 +689,36 @@ async function handleVote(clipId, btnEl) {
       .eq('voter_discord_id', currentUser.discordId)
       .eq('clips.week_id', week.id);
 
-    console.log('Existing votes:', myVotesThisWeek);
-    console.log('Lookup error:', lookupError);
-
     if (lookupError) {
-      console.error('❌ COULD NOT CHECK EXISTING VOTES:', lookupError);
+      console.error('Could not check existing votes:', lookupError);
       alert(`Could not check your votes:\n${lookupError.message}`);
       return;
     }
 
     // Remove existing vote(s)
     for (const v of myVotesThisWeek || []) {
-
-      console.log('Deleting previous vote:', v.id);
-
       const { error: deleteError } = await supabase
         .from('votes')
         .delete()
         .eq('id', v.id);
 
       if (deleteError) {
-        console.error('❌ FAILED TO DELETE OLD VOTE:', deleteError);
+        console.error('Failed to delete old vote:', deleteError);
         alert(`Could not replace your previous vote:\n${deleteError.message}`);
         return;
       }
     }
 
     // Insert new vote
-    const {
-      data: insertedVote,
-      error: insertError
-    } = await supabase
+    const { error: insertError } = await supabase
       .from('votes')
       .insert({
         clip_id: clipId,
         voter_discord_id: currentUser.discordId,
-      })
-      .select();
-
-    console.log('Inserted vote:', insertedVote);
-    console.log('Insert error:', insertError);
+      });
 
     if (insertError) {
-      console.error('❌ INSERT VOTE FAILED:', insertError);
+      console.error('Insert vote failed:', insertError);
       alert(`Could not cast vote:\n${insertError.message}`);
       return;
     }
@@ -813,7 +803,14 @@ async function renderWeek() {
 }
 
 // ── Data loading: hall of fame ──────────────────────────────────
+// Past weeks are closed for voting — their winners can't change once
+// loaded — so we only fetch Hall of Fame once per page load instead of
+// re-running a weeks+clips+votes fan-out every time the tab is clicked.
+let hofLoaded = false;
+
 async function loadHallOfFame() {
+  if (hofLoaded) return;
+
   const strip = document.getElementById('hofStrip');
   strip.innerHTML = `<div class="empty-state" style="min-width:100%">Loading past winners…</div>`;
 
@@ -825,6 +822,7 @@ async function loadHallOfFame() {
     .order('week_start', { ascending: false });
 
   if (!pastWeeks || pastWeeks.length === 0) {
+    hofLoaded = true;
     strip.innerHTML = `<div class="empty-state" style="min-width:100%">
       <strong>No past weeks yet</strong>
       Check back after this week wraps up.
@@ -860,6 +858,8 @@ async function loadHallOfFame() {
       <strong>No votes cast yet in past weeks</strong>
     </div>`;
   }
+
+  hofLoaded = true;
 }
 
 // ── Init ─────────────────────────────────────────────────────────
