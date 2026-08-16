@@ -1,7 +1,8 @@
 // pull-clips.mjs
 // Fetches new messages from the #game-highlights Discord channel, pulls out
 // clip links (medal.tv / streamable / youtube / twitch clips), and inserts
-// them into Supabase — assigning each one to the current week.
+// them into Supabase — assigning each one to the week it was actually
+// POSTED in (not the week the script happens to run).
 //
 // Runs on a schedule via GitHub Actions (see .github/workflows/pull-clips.yml).
 // Uses the Supabase *service_role* key, which bypasses RLS, so this must
@@ -55,8 +56,6 @@ async function fetchNewMessages(afterId) {
   const messages = [];
   let after = afterId;
 
-  // Discord returns newest-first when no `after` cursor logic loops needed;
-  // paginate forward in batches of 100 until we run out of new messages.
   while (true) {
     const url = new URL(
       `https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages`
@@ -77,7 +76,6 @@ async function fetchNewMessages(afterId) {
     const batch = await res.json();
     if (batch.length === 0) break;
 
-    // Discord's `after` pagination returns oldest-first within the batch.
     messages.push(...batch);
     after = batch[batch.length - 1].id;
 
@@ -87,14 +85,13 @@ async function fetchNewMessages(afterId) {
   return messages;
 }
 
-function getOrCreateCurrentWeek() {
-  // Monday–Sunday week, in UTC. Adjust if your club wants a different cadence.
-  const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sunday
+// Monday–Sunday week (UTC) that contains the given date.
+function getWeekBounds(date) {
+  const day = date.getUTCDay(); // 0 = Sunday
   const diffToMonday = (day + 6) % 7;
 
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() - diffToMonday);
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() - diffToMonday);
   monday.setUTCHours(0, 0, 0, 0);
 
   const sunday = new Date(monday);
@@ -106,8 +103,14 @@ function getOrCreateCurrentWeek() {
   };
 }
 
-async function ensureWeekRow() {
-  const { week_start, week_end } = getOrCreateCurrentWeek();
+// Cache so we only hit Supabase once per distinct week within a single run,
+// even if this run is backfilling clips spanning many different weeks.
+const weekIdCache = new Map();
+
+async function getOrCreateWeekId(date) {
+  const { week_start, week_end } = getWeekBounds(date);
+
+  if (weekIdCache.has(week_start)) return weekIdCache.get(week_start);
 
   const { data: existing, error: selErr } = await supabase
     .from("weeks")
@@ -115,7 +118,11 @@ async function ensureWeekRow() {
     .eq("week_start", week_start)
     .maybeSingle();
   if (selErr) throw selErr;
-  if (existing) return existing.id;
+
+  if (existing) {
+    weekIdCache.set(week_start, existing.id);
+    return existing.id;
+  }
 
   const { data: inserted, error: insErr } = await supabase
     .from("weeks")
@@ -124,7 +131,14 @@ async function ensureWeekRow() {
     .single();
   if (insErr) throw insErr;
 
+  weekIdCache.set(week_start, inserted.id);
   return inserted.id;
+}
+
+// Discord message IDs are snowflakes — the timestamp is encoded in the
+// first 42 bits. Used as a fallback if a message somehow lacks `timestamp`.
+function snowflakeToDate(id) {
+  return new Date(Number((BigInt(id) >> 22n) + 1420070400000n));
 }
 
 async function main() {
@@ -136,12 +150,13 @@ async function main() {
     return;
   }
 
-  const weekId = await ensureWeekRow();
-
   const rows = [];
   for (const msg of messages) {
     const matches = msg.content?.match(CLIP_URL_REGEX);
     if (!matches) continue;
+
+    const postedAt = msg.timestamp ? new Date(msg.timestamp) : snowflakeToDate(msg.id);
+    const weekId = await getOrCreateWeekId(postedAt);
 
     for (const clipUrl of matches) {
       rows.push({
@@ -150,17 +165,13 @@ async function main() {
         author_discord_id: msg.author.id,
         author_username: msg.author.username,
         clip_url: clipUrl,
-        posted_at: msg.timestamp ?? new Date(
-          Number((BigInt(msg.id) >> 22n) + 1420070400000n)
-        ).toISOString(),
+        posted_at: postedAt.toISOString(),
         week_id: weekId,
       });
     }
   }
 
   if (rows.length > 0) {
-    // discord_message_id is unique, so re-running on an already-seen
-    // message is a harmless no-op (upsert ignores the duplicate).
     const { error } = await supabase
       .from("clips")
       .upsert(rows, { onConflict: "discord_message_id", ignoreDuplicates: true });
