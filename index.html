@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UTDRL — Clip of the Week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1c;
+    --bg-elevated: #131b2e;
+    --bg-card-hover: #182236;
+    --line: rgba(255,255,255,0.08);
+    --blue: #35c7ff;
+    --blue-dim: #35c7ff33;
+    --orange: #ff7a29;
+    --orange-dim: #ff7a2933;
+    --text: #eaf0fb;
+    --text-dim: #8798b8;
+    --text-faint: #4f5d78;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(53,199,255,0.10), transparent),
+      radial-gradient(ellipse 900px 500px at 85% 0%, rgba(255,122,41,0.08), transparent),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .display { font-family: 'Rajdhani', sans-serif; }
+
+  a { color: inherit; }
+
+  /* ---------- Nav ---------- */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: rgba(10,15,28,0.85);
+    backdrop-filter: blur(10px);
+    z-index: 20;
+  }
+  .nav-left { display: flex; align-items: center; gap: 28px; }
+  .brand {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand .dot { color: var(--orange); }
+  .tabs { display: flex; gap: 4px; }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.03em;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+  .tab-btn.active { color: var(--blue); background: var(--blue-dim); }
+
+  .auth-area { display: flex; align-items: center; gap: 12px; }
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--text-dim);
+  }
+  .user-chip img { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); }
+  .btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    font-size: 14px;
+    padding: 9px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .btn:hover { border-color: var(--blue); background: var(--blue-dim); }
+  .btn:focus-visible, .tab-btn:focus-visible, .gauge-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    background: var(--blue);
+    color: #06111c;
+    border-color: var(--blue);
+  }
+  .btn-primary:hover { background: #55d3ff; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding: 56px 32px 40px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero-eyebrow {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .hero h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: clamp(36px, 6vw, 64px);
+    letter-spacing: 0.01em;
+    margin: 0 0 14px;
+    background: linear-gradient(90deg, var(--blue), var(--orange));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero-meta {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    color: var(--text-dim);
+    font-size: 15px;
+  }
+  .hero-meta strong { color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+  /* ---------- Grid ---------- */
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 32px 80px; }
+  .section-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 18px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(53,199,255,0.35);
+    box-shadow: 0 10px 30px -12px rgba(53,199,255,0.25);
+    background: var(--bg-card-hover);
+  }
+  .card-media {
+    aspect-ratio: 16/9;
+    background: #06090f;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .card-media iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .card-media-fallback {
+    height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .card-media-fallback .play {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--blue-dim); border: 1px solid var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--blue); font-size: 18px;
+  }
+  .host-badge {
+    position: absolute; top: 10px; left: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: rgba(6,9,15,0.75);
+    color: var(--text-dim);
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    letter-spacing: 0.03em;
+  }
+
+  .card-body { padding: 14px 16px 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+  .card-author { font-size: 14px; font-weight: 500; }
+  .card-date { font-size: 12px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; margin-top: 3px; }
+
+  /* ---------- Boost gauge vote button ---------- */
+  .gauge-btn {
+    background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 4px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .gauge-btn svg { width: 52px; height: 52px; transform: rotate(-90deg); display: block; }
+  .gauge-track { fill: none; stroke: var(--line); stroke-width: 5; }
+  .gauge-fill {
+    fill: none; stroke: var(--blue); stroke-width: 5; stroke-linecap: round;
+    transition: stroke-dashoffset 0.4s ease, stroke 0.2s;
+  }
+  .gauge-btn.voted .gauge-fill { stroke: var(--orange); }
+  .gauge-count {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(0deg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 500;
+  }
+  .gauge-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 10px; letter-spacing: 0.08em;
+    color: var(--text-faint); text-transform: uppercase;
+  }
+  .gauge-btn:hover .gauge-fill { stroke: #55d3ff; }
+  .gauge-btn.voted:hover .gauge-fill { stroke: #ff9450; }
+  @keyframes pip {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .gauge-btn.pip svg { animation: pip 0.35s ease; }
+
+  /* ---------- Hall of Fame ---------- */
+  .hof-strip {
+    display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px;
+    scrollbar-width: thin;
+  }
+  .hof-card {
+    flex: 0 0 260px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .hof-week {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-faint); margin-bottom: 8px;
+  }
+  .hof-winner-author { font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 17px; }
+  .hof-winner-votes {
+    margin-top: 6px; font-size: 13px; color: var(--orange);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .hof-link { display: block; margin-top: 10px; font-size: 13px; color: var(--blue); text-decoration: none; }
+  .hof-link:hover { text-decoration: underline; }
+
+  /* ---------- Empty / loading states ---------- */
+  .empty-state {
+    padding: 60px 20px; text-align: center; color: var(--text-dim);
+    border: 1px dashed var(--line); border-radius: 10px;
+  }
+  .empty-state strong { display: block; color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 18px; margin-bottom: 6px; }
+
+  .hidden { display: none !important; }
+
+  footer {
+    text-align: center; padding: 30px; color: var(--text-faint);
+    font-size: 13px; border-top: 1px solid var(--line);
+  }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }
+    .hero { padding: 40px 18px 30px; }
+    main { padding: 30px 18px 60px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <div class="brand"><span>UTDRL</span><span class="dot">●</span></div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="week">This Week</button>
+      <button class="tab-btn" data-tab="hof">Hall of Fame</button>
+    </div>
+  </div>
+  <div class="auth-area" id="authArea">
+    <button class="btn btn-primary" id="loginBtn">Log in with Discord</button>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">Ranked Solo/Duo Highlights</div>
+  <h1 class="display">CLIP OF THE WEEK</h1>
+  <div class="hero-meta">
+    <span id="weekRange">—</span>
+    <span id="weekCountdown">—</span>
+  </div>
+</section>
+
+<main>
+  <div id="weekView">
+    <p class="section-label">This week's submissions</p>
+    <div id="weekGrid" class="grid"></div>
+  </div>
+
+  <div id="hofView" class="hidden">
+    <p class="section-label">Past winners</p>
+    <div id="hofStrip" class="hof-strip"></div>
+  </div>
+</main>
+
+<footer>UTD Rocket League Club — clips pulled from #game-highlights, one vote per person per week.</footer>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// ── Config — fill these in with your Supabase project's values ──
+// SUPABASE_URL: Project Settings → API → "Project URL"
+// SUPABASE_ANON_KEY: Project Settings → API → "anon public" key
+// (the anon key is DESIGNED to be public — safe to commit, unlike service_role)
+const SUPABASE_URL = "https://mmcfcrjnaweafpfhslvu.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = 'NEq-Tt4xjJb3h8acH3zKSSgLiVnNsuVdeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tY2ZjcmpuYXdlYWZwZmhzbHZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODEyNTksImV4cCI6MjEwMjQ1NzI1OX0.Ho8SKXxfwdwUOJxIJ729u7uZW5S12wUPerTSzaI5ySQ';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null; // { discordId, username, avatarUrl }
+
+// ── Auth ──────────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+  applySession(session);
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    applySession(session);
+    renderWeek(); // re-render so vote states/login-gating update
+  });
+}
+
+function applySession(session) {
+  const authArea = document.getElementById('authArea');
+  if (session?.user) {
+    const meta = session.user.user_metadata || {};
+    currentUser = {
+      discordId: meta.provider_id || meta.sub,
+      username: meta.full_name || meta.name || 'Member',
+      avatarUrl: meta.avatar_url || meta.picture || '',
+    };
+    authArea.innerHTML = `
+      <div class="user-chip">
+        ${currentUser.avatarUrl ? `<img src="${currentUser.avatarUrl}" alt="">` : ''}
+        <span>${escapeHtml(currentUser.username)}</span>
+      </div>
+      <button class="btn" id="logoutBtn">Log out</button>
+    `;
+    document.getElementById('logoutBtn').onclick = () => supabase.auth.signOut();
+  } else {
+    currentUser = null;
+    authArea.innerHTML = `<button class="btn btn-primary" id="loginBtn">Log in with Discord</button>`;
+    document.getElementById('loginBtn').onclick = login;
+  }
+}
+
+function login() {
+  supabase.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: window.location.origin + window.location.pathname },
+  });
+}
+
+document.getElementById('loginBtn').onclick = login;
+
+// ── Tabs ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('weekView').classList.toggle('hidden', tab !== 'week');
+    document.getElementById('hofView').classList.toggle('hidden', tab !== 'hof');
+    if (tab === 'hof') loadHallOfFame();
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────────────
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str ?? '';
+  return d.innerHTML;
+}
+
+function currentWeekMonday() {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const diffToMonday = (day + 6) % 7;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - diffToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday.toISOString().slice(0, 10);
+}
+
+function formatDateRange(startStr, endStr) {
+  const opts = { month: 'short', day: 'numeric' };
+  const start = new Date(startStr + 'T00:00:00Z').toLocaleDateString('en-US', opts);
+  const end = new Date(endStr + 'T00:00:00Z').toLocaleDateString('en-US', opts);
+  return `${start} – ${end}`;
+}
+
+function getHostBadge(url) {
+  if (url.includes('medal.tv')) return 'MEDAL.TV';
+  if (url.includes('streamable.com')) return 'STREAMABLE';
+  if (url.includes('youtu')) return 'YOUTUBE';
+  if (url.includes('twitch.tv')) return 'TWITCH';
+  return 'CLIP';
+}
+
+function getEmbedUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) {
+      return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+    }
+    if (u.hostname.includes('youtube.com')) {
+      const id = u.searchParams.get('v');
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+    if (u.hostname.includes('streamable.com')) {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      if (id) return `https://streamable.com/e/${id}`;
+    }
+    if (u.hostname.includes('clips.twitch.tv')) {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      if (id) return `https://clips.twitch.tv/embed?clip=${id}&parent=${location.hostname}`;
+    }
+  } catch { /* fall through to null */ }
+  // medal.tv and anything unrecognized: no reliable public iframe embed,
+  // fall back to a "watch on [host]" card instead.
+  return null;
+}
+
+function gaugeSvg(votes, voted) {
+  const r = 20, c = 2 * Math.PI * r;
+  const pct = Math.min(votes / 10, 1); // gauge "fills up" visually up to 10 votes
+  const offset = c - pct * c;
+  return `
+    <svg viewBox="0 0 48 48">
+      <circle class="gauge-track" cx="24" cy="24" r="${r}"></circle>
+      <circle class="gauge-fill" cx="24" cy="24" r="${r}"
+        stroke-dasharray="${c}" stroke-dashoffset="${offset}"></circle>
+    </svg>
+    <span class="gauge-count mono">${votes}</span>
+  `;
+}
+
+// ── Data loading: this week ─────────────────────────────────────
+async function loadWeekMeta() {
+  const monday = currentWeekMonday();
+  const { data: week } = await supabase
+    .from('weeks')
+    .select('*')
+    .eq('week_start', monday)
+    .maybeSingle();
+
+  if (!week) return null;
+
+  document.getElementById('weekRange').textContent = formatDateRange(week.week_start, week.week_end);
+  updateCountdown(week.week_end);
+  return week;
+}
+
+function updateCountdown(weekEndStr) {
+  const end = new Date(weekEndStr + 'T23:59:59Z');
+  const diffMs = end - new Date();
+  const el = document.getElementById('weekCountdown');
+  if (diffMs <= 0) { el.textContent = 'Voting closed'; return; }
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  el.innerHTML = `<strong>${days}d ${hours}h</strong> left to vote`;
+}
+
+async function loadWeekVotes(clipIds) {
+  if (clipIds.length === 0) return { counts: {}, myVoteClipId: null };
+  const { data: votes } = await supabase
+    .from('votes')
+    .select('clip_id, voter_discord_id')
+    .in('clip_id', clipIds);
+
+  const counts = {};
+  let myVoteClipId = null;
+  for (const v of votes || []) {
+    counts[v.clip_id] = (counts[v.clip_id] || 0) + 1;
+    if (currentUser && v.voter_discord_id === currentUser.discordId) {
+      myVoteClipId = v.clip_id;
+    }
+  }
+  return { counts, myVoteClipId };
+}
+
+function renderClipCard(clip, voteCount, isVoted) {
+  const embedUrl = getEmbedUrl(clip.clip_url);
+  const media = embedUrl
+    ? `<iframe src="${embedUrl}" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>`
+    : `<a class="card-media-fallback" href="${clip.clip_url}" target="_blank" rel="noopener">
+         <span class="play">▶</span><span>Watch on ${getHostBadge(clip.clip_url)} ↗</span>
+       </a>`;
+
+  const postedDate = new Date(clip.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-media">
+      <span class="host-badge">${getHostBadge(clip.clip_url)}</span>
+      ${media}
+    </div>
+    <div class="card-body">
+      <div>
+        <div class="card-author">${escapeHtml(clip.author_username)}</div>
+        <div class="card-date">${postedDate}</div>
+      </div>
+      <button class="gauge-btn ${isVoted ? 'voted' : ''}" data-clip-id="${clip.id}" title="${isVoted ? 'Remove vote' : 'Vote for this clip'}">
+        ${gaugeSvg(voteCount, isVoted)}
+        <span class="gauge-label">${isVoted ? 'Voted' : 'Boost'}</span>
+      </button>
+    </div>
+  `;
+
+  card.querySelector('.gauge-btn').addEventListener('click', (e) => handleVote(clip.id, e.currentTarget));
+  return card;
+}
+
+async function handleVote(clipId, btnEl) {
+  if (!currentUser) { login(); return; }
+
+  const alreadyVotedThis = btnEl.classList.contains('voted');
+
+  if (alreadyVotedThis) {
+    // Remove my vote entirely.
+    await supabase.from('votes').delete()
+      .eq('clip_id', clipId).eq('voter_discord_id', currentUser.discordId);
+  } else {
+    // Clear any existing vote I have this week (across ALL this week's clips),
+    // then cast the new one — enforces "one favorite per week" from the UI side
+    // too, on top of the DB constraint.
+    const week = await loadWeekMeta();
+    if (week) {
+      const { data: myVotesThisWeek } = await supabase
+        .from('votes')
+        .select('id, clip_id, clips!inner(week_id)')
+        .eq('voter_discord_id', currentUser.discordId)
+        .eq('clips.week_id', week.id);
+      for (const v of myVotesThisWeek || []) {
+        await supabase.from('votes').delete().eq('id', v.id);
+      }
+    }
+    await supabase.from('votes').insert({
+      clip_id: clipId,
+      voter_discord_id: currentUser.discordId,
+    });
+  }
+
+  btnEl.classList.add('pip');
+  setTimeout(() => btnEl.classList.remove('pip'), 350);
+  renderWeek();
+}
+
+async function renderWeek() {
+  const grid = document.getElementById('weekGrid');
+  const week = await loadWeekMeta();
+
+  if (!week) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <strong>No clips logged yet this week</strong>
+      Post a highlight in #game-highlights — it'll show up here within the hour.
+    </div>`;
+    return;
+  }
+
+  const { data: clips } = await supabase
+    .from('clips')
+    .select('*')
+    .eq('week_id', week.id)
+    .order('posted_at', { ascending: false });
+
+  if (!clips || clips.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <strong>No clips logged yet this week</strong>
+      Post a highlight in #game-highlights — it'll show up here within the hour.
+    </div>`;
+    return;
+  }
+
+  const { counts, myVoteClipId } = await loadWeekVotes(clips.map(c => c.id));
+
+  grid.innerHTML = '';
+  for (const clip of clips) {
+    grid.appendChild(renderClipCard(clip, counts[clip.id] || 0, clip.id === myVoteClipId));
+  }
+}
+
+// ── Data loading: hall of fame ──────────────────────────────────
+async function loadHallOfFame() {
+  const strip = document.getElementById('hofStrip');
+  strip.innerHTML = `<div class="empty-state" style="min-width:100%">Loading past winners…</div>`;
+
+  const todayMonday = currentWeekMonday();
+  const { data: pastWeeks } = await supabase
+    .from('weeks')
+    .select('*')
+    .lt('week_start', todayMonday)
+    .order('week_start', { ascending: false });
+
+  if (!pastWeeks || pastWeeks.length === 0) {
+    strip.innerHTML = `<div class="empty-state" style="min-width:100%">
+      <strong>No past weeks yet</strong>
+      Check back after this week wraps up.
+    </div>`;
+    return;
+  }
+
+  strip.innerHTML = '';
+  for (const week of pastWeeks) {
+    const { data: clips } = await supabase.from('clips').select('*').eq('week_id', week.id);
+    if (!clips || clips.length === 0) continue;
+
+    const { counts } = await loadWeekVotes(clips.map(c => c.id));
+    let winner = clips[0], winnerVotes = counts[clips[0].id] || 0;
+    for (const c of clips) {
+      const v = counts[c.id] || 0;
+      if (v > winnerVotes) { winner = c; winnerVotes = v; }
+    }
+
+    const card = document.createElement('div');
+    card.className = 'hof-card';
+    card.innerHTML = `
+      <div class="hof-week">${formatDateRange(week.week_start, week.week_end)}</div>
+      <div class="hof-winner-author">${escapeHtml(winner.author_username)}</div>
+      <div class="hof-winner-votes">🔥 ${winnerVotes} vote${winnerVotes === 1 ? '' : 's'}</div>
+      <a class="hof-link" href="${winner.clip_url}" target="_blank" rel="noopener">Watch clip ↗</a>
+    `;
+    strip.appendChild(card);
+  }
+
+  if (strip.children.length === 0) {
+    strip.innerHTML = `<div class="empty-state" style="min-width:100%">
+      <strong>No votes cast yet in past weeks</strong>
+    </div>`;
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+initAuth();
+renderWeek();
+setInterval(() => { loadWeekMeta(); }, 60000); // keep countdown fresh
+</script>
+
+</body>
+</html>
