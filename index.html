@@ -15,7 +15,7 @@
     --line: rgba(255,255,255,0.08);
     --blue: #54cfff;
     --blue-dim: #35c7ff33;
-    --orange: #ff6607;
+    --orange: #ff6200;
     --orange-dim: #ff7b2933;
     --text: #eaf0fb;
     --text-dim: #8798b8;
@@ -29,8 +29,8 @@
   body {
     margin: 0;
     background:
-      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(53, 198, 255, 0.69), transparent),
-      radial-gradient(ellipse 900px 500px at 85% 0%, rgba(53, 198, 255, 0.69), transparent),
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(53, 198, 255, 0.5), transparent),
+      radial-gradient(ellipse 900px 500px at 85% 0%, rgba(255, 123, 41, 0.5), transparent),
       var(--bg);
     color: var(--text);
     font-family: 'Inter', system-ui, sans-serif;
@@ -51,7 +51,7 @@
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
-    background: rgba(10,15,28,0.85);
+    background: rgba(14, 22, 45, 0.85);
     backdrop-filter: blur(10px);
     z-index: 20;
   }
@@ -219,23 +219,39 @@
 
   /* ---------- Boost gauge vote button ---------- */
   .gauge-btn {
-    background: none; border: none; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 4px;
+    background: none; 
+    border: none; 
+    cursor: pointer;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    gap: 2px;
+    padding: 0; /* Clear padding here */
     position: relative;
+    color: #ffffff;
     flex-shrink: 0;
-  }
+}
   .gauge-btn svg { width: 52px; height: 52px; transform: rotate(-90deg); display: block; }
   .gauge-track { fill: none; stroke: var(--line); stroke-width: 5; }
   .gauge-fill {
-    fill: none; stroke: var(--blue); stroke-width: 5; stroke-linecap: round;
-    transition: stroke-dashoffset 0.4s ease, stroke 0.2s;
+    fill: none; 
+    stroke: var(--blue); 
+    stroke-width: 5; 
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.4s ease; /* Removed 'stroke 0.2s' */
   }
   .gauge-btn.voted .gauge-fill { stroke: var(--orange); }
   .gauge-count {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(0deg);
+    position: absolute; 
+    top: 28px; /* Half of SVG height (52px / 2) locks it precisely to the circle center */
+    left: 50%; 
+    transform: translate(-50%, -50%);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px; font-weight: 500;
+    font-size: 13px; 
+    font-weight: 500;
+    line-height: 1; /* Eliminates extra vertical font spacing */
+    margin-top: -1px; /* Optional: Slight visual optical offset for perfect centering */
   }
   .gauge-label {
     font-family: 'Rajdhani', sans-serif;
