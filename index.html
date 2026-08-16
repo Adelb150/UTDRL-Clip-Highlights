@@ -575,38 +575,116 @@ function renderClipCard(clip, voteCount, isVoted) {
 }
 
 async function handleVote(clipId, btnEl) {
-  if (!currentUser) { login(); return; }
+  if (!currentUser) {
+    login();
+    return;
+  }
+
+  console.log('--- VOTE DEBUG ---');
+  console.log('clipId:', clipId);
+  console.log('currentUser:', currentUser);
+  console.log('discordId:', currentUser.discordId);
 
   const alreadyVotedThis = btnEl.classList.contains('voted');
 
   if (alreadyVotedThis) {
-    // Remove my vote entirely.
-    await supabase.from('votes').delete()
-      .eq('clip_id', clipId).eq('voter_discord_id', currentUser.discordId);
+
+    console.log('Removing vote...');
+
+    const { data, error } = await supabase
+      .from('votes')
+      .delete()
+      .eq('clip_id', clipId)
+      .eq('voter_discord_id', currentUser.discordId);
+
+    console.log('DELETE data:', data);
+    console.log('DELETE error:', error);
+
+    if (error) {
+      console.error('❌ DELETE VOTE FAILED:', error);
+      alert(`Could not remove vote:\n${error.message}`);
+      return;
+    }
+
   } else {
-    // Clear any existing vote I have this week (across ALL this week's clips),
-    // then cast the new one — enforces "one favorite per week" from the UI side
-    // too, on top of the DB constraint.
+
+    console.log('Adding vote...');
+
+    // Get current week
     const week = await loadWeekMeta();
-    if (week) {
-      const { data: myVotesThisWeek } = await supabase
+
+    console.log('week:', week);
+
+    if (!week) {
+      console.error('❌ No current week found');
+      return;
+    }
+
+    // Find any existing vote this week
+    const {
+      data: myVotesThisWeek,
+      error: lookupError
+    } = await supabase
+      .from('votes')
+      .select('id, clip_id, clips!inner(week_id)')
+      .eq('voter_discord_id', currentUser.discordId)
+      .eq('clips.week_id', week.id);
+
+    console.log('Existing votes:', myVotesThisWeek);
+    console.log('Lookup error:', lookupError);
+
+    if (lookupError) {
+      console.error('❌ COULD NOT CHECK EXISTING VOTES:', lookupError);
+      alert(`Could not check your votes:\n${lookupError.message}`);
+      return;
+    }
+
+    // Remove existing vote(s)
+    for (const v of myVotesThisWeek || []) {
+
+      console.log('Deleting previous vote:', v.id);
+
+      const { error: deleteError } = await supabase
         .from('votes')
-        .select('id, clip_id, clips!inner(week_id)')
-        .eq('voter_discord_id', currentUser.discordId)
-        .eq('clips.week_id', week.id);
-      for (const v of myVotesThisWeek || []) {
-        await supabase.from('votes').delete().eq('id', v.id);
+        .delete()
+        .eq('id', v.id);
+
+      if (deleteError) {
+        console.error('❌ FAILED TO DELETE OLD VOTE:', deleteError);
+        alert(`Could not replace your previous vote:\n${deleteError.message}`);
+        return;
       }
     }
-    await supabase.from('votes').insert({
-      clip_id: clipId,
-      voter_discord_id: currentUser.discordId,
-    });
+
+    // Insert new vote
+    const {
+      data: insertedVote,
+      error: insertError
+    } = await supabase
+      .from('votes')
+      .insert({
+        clip_id: clipId,
+        voter_discord_id: currentUser.discordId,
+      })
+      .select();
+
+    console.log('Inserted vote:', insertedVote);
+    console.log('Insert error:', insertError);
+
+    if (insertError) {
+      console.error('❌ INSERT VOTE FAILED:', insertError);
+      alert(`Could not cast vote:\n${insertError.message}`);
+      return;
+    }
   }
 
   btnEl.classList.add('pip');
-  setTimeout(() => btnEl.classList.remove('pip'), 350);
-  renderWeek();
+
+  setTimeout(() => {
+    btnEl.classList.remove('pip');
+  }, 350);
+
+  await renderWeek();
 }
 
 async function renderWeek() {
