@@ -1,0 +1,13 @@
+{
+  "name": "rl-clip-of-the-week",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pulls Rocket League clip links from a Discord channel into Supabase for a weekly voting site.",
+  "scripts": {
+    "pull-clips": "node scripts/pull-clips.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

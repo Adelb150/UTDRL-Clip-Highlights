@@ -1,0 +1,27 @@
+name: Pull clips from Discord
+
+on:
+  schedule:
+    # Every hour. Adjust the cron if you want it more/less frequent —
+    # this costs nothing extra either way on a public repo.
+    - cron: "0 * * * *"
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab
+
+jobs:
+  pull-clips:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - run: npm run pull-clips
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
