@@ -360,11 +360,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = 'https://mmcfcrjnaweafpfhslvu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tY2ZjcmpuYXdlYWZwZmhzbHZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODEyNTksImV4cCI6MjEwMjQ1NzI1OX0.Ho8SKXxfwdwUOJxIJ729u7uZW5S12wUPerTSzaI5ySQ';
 
-// The club's fixed offset from UTC. Currently CDT (UTC-5). Unlike a real
-// IANA timezone, this does NOT auto-adjust for DST — flip it to -6 for CST
-// when the time changes (DST ends Sun Nov 1, 2026), and back to -5 next
-// spring. Must match CLUB_UTC_OFFSET_HOURS in pull-clips.mjs, or clips
-// could get filed under a week this page no longer thinks is current.
+
 const CLUB_UTC_OFFSET_HOURS = -5;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -386,14 +382,6 @@ async function initAuth() {
 
   supabase.auth.onAuthStateChange((event, session) => {
     applySession(session);
-
-    // Supabase's focus-triggered session check can re-fire a SIGNED_IN-type
-    // event even when it's the same user and nothing actually changed (a
-    // known quirk, not something we can turn off) — so don't trust the
-    // event name. Only do a full re-render when the signed-in user's
-    // identity actually changes; otherwise just refresh vote counts.
-    // A full renderWeek() re-mounts every <video>/thumbnail, which is what
-    // was causing repeat hits to the medal.tv API on every tab-back.
     const newUserId = session?.user?.id ?? null;
     if (newUserId !== lastAuthUserId) {
       lastAuthUserId = newUserId;
@@ -456,13 +444,7 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-// escapeHtml() above escapes for *text content* — it does not escape `"`,
-// which is the character that matters inside an attribute value. clip_url
-// comes straight from Discord message text via a fairly permissive regex
-// in pull-clips.mjs, so it's untrusted: without this, a message crafted
-// like `https://medal.tv/x"><img src=x onerror=...>` would close the
-// href="..." attribute early and inject arbitrary HTML/JS for every
-// visitor. Use this (not escapeHtml) for anything going inside href="...".
+
 function escapeAttr(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -498,11 +480,7 @@ function getHostBadge(url) {
   return 'CLIP';
 }
 
-// Returns { kind: 'video' | 'iframe', url } or null if the host isn't
-// recognized. kind matters: medal.tv's socialVideoUrl redirects straight to
-// an mp4 (playable in a <video> tag), but YouTube/Streamable/Twitch return
-// HTML embed *pages* that only work inside an <iframe> — feeding those into
-// a <video><source> silently fails to play.
+
 function getEmbedUrl(url) {
   try {
     const u = new URL(url);
@@ -596,12 +574,6 @@ async function loadWeekVotes(clipIds) {
   return { counts, myVoteClipId };
 }
 
-// Video is never auto-loaded. Every card starts as a "Watch on HOST ↗"
-// thumbnail; only clicking it creates a <video> and points it at Medal
-// (or wherever). This is deliberate — an eagerly-loaded <video> keeps a
-// live connection to the clip host open, and browsers will suspend/
-// resume-fetch that connection whenever the tab is backgrounded and
-// re-focused. With nothing to suspend, there's nothing to re-fetch.
 function playButtonMarkup(clipUrl) {
   return `<a class="card-media-fallback" href="${escapeAttr(clipUrl)}" target="_blank" rel="noopener">
       <span class="play">▶</span>
@@ -629,10 +601,7 @@ function videoMarkup(embed) {
     </video>`;
 }
 
-// Wires the "Watch on HOST" link inside mediaEl so a click swaps it for a
-// real player and starts playback, instead of navigating away — unless we
-// don't know how to embed the host, in which case the link just opens
-// normally (untouched default behavior).
+
 function wireClickToPlay(mediaEl, clipUrl) {
   const link = mediaEl.querySelector('.card-media-fallback');
   link.addEventListener('click', (e) => {
@@ -769,10 +738,6 @@ async function handleVote(clipId, btnEl) {
 // can update gauges without re-fetching clips or touching the <video> nodes.
 let currentWeekClips = [];
 
-// Updates vote counts/gauge state on the already-rendered cards in place —
-// no grid.innerHTML rebuild, so existing <video> elements are left alone
-// and don't re-hit the medal.tv API. Safe to call often (tab focus, auth
-// token refresh, after casting a vote).
 async function refreshVoteStates() {
   if (currentWeekClips.length === 0) return;
 
