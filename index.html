@@ -329,7 +329,7 @@
 </nav>
 
 <section class="hero">
-  <div class="hero-eyebrow">Ranked Solo/Duo Highlights</div>
+  <div class="hero-eyebrow">Ranked Highlights</div>
   <h1 class="display">CLIP OF THE WEEK</h1>
   <div class="hero-meta">
     <span id="weekRange">—</span>
@@ -360,10 +360,23 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = 'https://mmcfcrjnaweafpfhslvu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tY2ZjcmpuYXdlYWZwZmhzbHZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODEyNTksImV4cCI6MjEwMjQ1NzI1OX0.Ho8SKXxfwdwUOJxIJ729u7uZW5S12wUPerTSzaI5ySQ';
 
+// The club's fixed offset from UTC. Currently CDT (UTC-5). Unlike a real
+// IANA timezone, this does NOT auto-adjust for DST — flip it to -6 for CST
+// when the time changes (DST ends Sun Nov 1, 2026), and back to -5 next
+// spring. Must match CLUB_UTC_OFFSET_HOURS in pull-clips.mjs, or clips
+// could get filed under a week this page no longer thinks is current.
+const CLUB_UTC_OFFSET_HOURS = -5;
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null; // { discordId, username, avatarUrl }
 let lastAuthUserId = null; // tracks identity, not event name — see initAuth()
+
+// The calendar date (Y/M/D) the given instant falls on at the fixed offset.
+function clubDateParts(date) {
+  const shifted = new Date(date.getTime() + CLUB_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1, day: shifted.getUTCDate() };
+}
 
 // ── Auth ──────────────────────────────────────────────────────────
 async function initAuth() {
@@ -443,13 +456,30 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
+// escapeHtml() above escapes for *text content* — it does not escape `"`,
+// which is the character that matters inside an attribute value. clip_url
+// comes straight from Discord message text via a fairly permissive regex
+// in pull-clips.mjs, so it's untrusted: without this, a message crafted
+// like `https://medal.tv/x"><img src=x onerror=...>` would close the
+// href="..." attribute early and inject arbitrary HTML/JS for every
+// visitor. Use this (not escapeHtml) for anything going inside href="...".
+function escapeAttr(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function currentWeekMonday() {
-  const now = new Date();
-  const day = now.getUTCDay();
-  const diffToMonday = (day + 6) % 7;
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() - diffToMonday);
-  monday.setUTCHours(0, 0, 0, 0);
+  const { year, month, day } = clubDateParts(new Date());
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+
+  const weekday = calendarDate.getUTCDay(); // 0 = Sunday
+  const diffToMonday = (weekday + 6) % 7;
+
+  const monday = new Date(calendarDate);
+  monday.setUTCDate(calendarDate.getUTCDate() - diffToMonday);
   return monday.toISOString().slice(0, 10);
 }
 
@@ -537,7 +567,9 @@ async function loadWeekMeta() {
 }
 
 function updateCountdown(weekEndStr) {
-  const end = new Date(weekEndStr + 'T23:59:59Z');
+  // weekEndStr's 23:59:59 is club-local time, not UTC — shift by the fixed
+  // offset to get the real UTC instant voting actually closes at.
+  const end = new Date(new Date(weekEndStr + 'T23:59:59Z').getTime() - CLUB_UTC_OFFSET_HOURS * 60 * 60 * 1000);
   const diffMs = end - new Date();
   const el = document.getElementById('weekCountdown');
   if (diffMs <= 0) { el.textContent = 'Voting closed'; return; }
@@ -571,7 +603,7 @@ async function loadWeekVotes(clipIds) {
 // resume-fetch that connection whenever the tab is backgrounded and
 // re-focused. With nothing to suspend, there's nothing to re-fetch.
 function playButtonMarkup(clipUrl) {
-  return `<a class="card-media-fallback" href="${clipUrl}" target="_blank" rel="noopener">
+  return `<a class="card-media-fallback" href="${escapeAttr(clipUrl)}" target="_blank" rel="noopener">
       <span class="play">▶</span>
       <span>Watch on ${getHostBadge(clipUrl)} ↗</span>
     </a>`;
@@ -848,7 +880,7 @@ async function loadHallOfFame() {
       <div class="hof-week">${formatDateRange(week.week_start, week.week_end)}</div>
       <div class="hof-winner-author">${escapeHtml(winner.author_username)}</div>
       <div class="hof-winner-votes">🔥 ${winnerVotes} vote${winnerVotes === 1 ? '' : 's'}</div>
-      <a class="hof-link" href="${winner.clip_url}" target="_blank" rel="noopener">Watch clip ↗</a>
+      <a class="hof-link" href="${escapeAttr(winner.clip_url)}" target="_blank" rel="noopener">Watch clip ↗</a>
     `;
     card.appendChild(hallOfFameRenderClipCard(winner, winnerVotes, false));
     strip.appendChild(card);

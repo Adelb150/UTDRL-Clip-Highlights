@@ -85,14 +85,31 @@ async function fetchNewMessages(afterId) {
   return messages;
 }
 
-// Monday–Sunday week (UTC) that contains the given date.
-function getWeekBounds(date) {
-  const day = date.getUTCDay(); // 0 = Sunday
-  const diffToMonday = (day + 6) % 7;
+// The club's fixed offset from UTC. Currently CDT (UTC-5). This does NOT
+// auto-adjust for DST — flip it to -6 for CST when the time changes (DST
+// ends Sun Nov 1, 2026), and back to -5 next spring. Must match
+// CLUB_UTC_OFFSET_HOURS in index.html, or clips could get filed under a
+// week the site no longer thinks is current.
+const CLUB_UTC_OFFSET_HOURS = -5;
 
-  const monday = new Date(date);
-  monday.setUTCDate(date.getUTCDate() - diffToMonday);
-  monday.setUTCHours(0, 0, 0, 0);
+// The calendar date (Y/M/D) the given instant falls on at the fixed offset.
+function clubDateParts(date) {
+  const shifted = new Date(date.getTime() + CLUB_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1, day: shifted.getUTCDate() };
+}
+
+// Monday–Sunday week, anchored to the club's local calendar day.
+function getWeekBounds(date) {
+  const { year, month, day } = clubDateParts(date);
+  // A pure calendar date (no real timezone meaning) — safe to do day-of-week
+  // and day-arithmetic on with the UTC methods, since we only care about Y/M/D.
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+
+  const weekday = calendarDate.getUTCDay(); // 0 = Sunday
+  const diffToMonday = (weekday + 6) % 7;
+
+  const monday = new Date(calendarDate);
+  monday.setUTCDate(calendarDate.getUTCDate() - diffToMonday);
 
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
