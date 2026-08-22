@@ -175,9 +175,15 @@ async function main() {
     const postedAt = msg.timestamp ? new Date(msg.timestamp) : snowflakeToDate(msg.id);
     const weekId = await getOrCreateWeekId(postedAt);
 
-    for (const clipUrl of matches) {
+    for (const [i, clipUrl] of matches.entries()) {
       rows.push({
-        discord_message_id: msg.id,
+        // Two clips in one Discord message would otherwise share the same
+        // discord_message_id, which is the upsert's conflict target below —
+        // the second would silently get dropped as a "duplicate" of the
+        // first. Only the extra clips get a suffix, so single-clip messages
+        // (the common case, and everything already synced so far) keep
+        // exactly the id they've always had.
+        discord_message_id: matches.length > 1 ? `${msg.id}:${i}` : msg.id,
         channel_id: DISCORD_CHANNEL_ID,
         author_discord_id: msg.author.id,
         author_username: msg.author.username,
